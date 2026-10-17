@@ -1,0 +1,65 @@
+name: Build and Release WALLORA APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Create original wallpaper assets
+        run: |
+          python3 -m pip install --user Pillow
+          python3 tools/generate_wallpapers.py
+
+      - name: Build Android APK
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify and rename APK
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/WALLORA-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WALLORA-APK
+          path: dist/WALLORA-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APK in Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: WALLORA v1.0.0 (Test build)
+          prerelease: true
+          files: dist/WALLORA-debug.apk
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
