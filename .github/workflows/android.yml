@@ -21,7 +21,11 @@ jobs:
           java-version: '17'
 
       - name: Install Android API
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK_MANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" || test "${PIPESTATUS[1]}" = "0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
